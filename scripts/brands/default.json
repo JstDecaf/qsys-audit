@@ -1,0 +1,42 @@
+{
+ "name": "",
+ "short": "",
+ "email": "",
+ "website": "",
+ "logo_data_uri": "",
+ "logo_aspect": 2.6557377049180326,
+ "font_link": "https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;600&family=IBM+Plex+Mono&display=swap",
+ "font_body": "'IBM Plex Sans',system-ui,sans-serif",
+ "font_heading": "'IBM Plex Sans',system-ui,sans-serif",
+ "font_mono": "'IBM Plex Mono',Menlo,monospace",
+ "headings_bold": true,
+ "colors": {
+  "ink": "#172129",
+  "body": "#2F3B45",
+  "sub": "#3D4B57",
+  "muted": "#6B7A86",
+  "line": "#B7C4CC",
+  "line_light": "#D3DCE2",
+  "offwhite": "#F3F5F7",
+  "white": "#FFFFFF",
+  "table_head_bg": "#172129",
+  "table_head_fg": "#FFFFFF",
+  "callout_border": "#0089B3",
+  "footer_bg": "#EEF2F4"
+ },
+ "mermaid": {
+  "theme": "neutral",
+  "themeVariables": {
+   "primaryColor": "#F3F5F7",
+   "primaryBorderColor": "#3D4B57",
+   "primaryTextColor": "#172129",
+   "lineColor": "#3D4B57",
+   "clusterBkg": "#F8FAFB",
+   "clusterBorder": "#B7C4CC",
+   "edgeLabelBackground": "#FFFFFF",
+   "fontFamily": "IBM Plex Sans, system-ui, sans-serif",
+   "fontSize": "13px"
+  }
+ },
+ "footer_note": ""
+}
