@@ -11,6 +11,7 @@ Q-SYS connects pins either with a wire or by giving two pins the same signal nam
 | Network I/O device with no connections at all | No audio pin on a Dante / AES67 / Q-LAN / analogue box is wired or name-matched | LOW | It is in the inventory but unused: spare capacity or a device that should be removed. It used to be CRITICAL before signal names were traced; a device that genuinely passes no audio shows up in the dead-end checks instead. |
 | Signal name with more than one source | Two output pins share a name | HIGH | Only one output may drive a name; the design will not compile or the wrong source wins. |
 | Input listening to a name nothing drives | Input pin named, no output with that name | MEDIUM | Usually the source was renamed. That input receives silence. |
+| Audio output whose only listeners are meters | Every destination is a meter, probe or recorder, or a container holding only those | HIGH | Metered but never delivered. Found three of these on the first pre-install design audited. |
 | Audio output published on a name nothing listens to | Output pin named, no input with that name | HIGH | That audio goes nowhere. Frequently a half-built feature (a second bell player, a spare zone). |
 | Control name with no destination | As above, control domain | LOW | Often harmless (a name kept for a UCI), sometimes a leftover. |
 | Block whose audio output goes nowhere | No audio output pin connected; meters, probes and recorders excluded | HIGH | A mixer or EQ whose output is unused is either dead code or a missing connection. |
@@ -18,7 +19,7 @@ Q-SYS connects pins either with a wire or by giving two pins the same signal nam
 
 ## Runtime state cached in the file
 
-When Designer is connected to a core and the file is saved, the current control values come with it. These are the last-known states.
+When Designer is connected to a core and the file is saved, the current control values come with it. These are the last-known states. With `--offline` all three checks below report as INFO, because a file saved away from a core carries either nothing or a stale earlier session.
 
 | Check | Evidence | Severity | Why |
 |---|---|---|---|

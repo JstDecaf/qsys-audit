@@ -17,8 +17,8 @@ import os
 import re
 from collections import Counter, defaultdict
 
-NET_RX = {"soft_dante_input", "dante_input", "input_box", "aes67_input", "qlan_rx"}
-NET_TX = {"soft_dante_output", "dante_output", "output_box", "aes67_output", "qlan_tx"}
+NET_RX = {"soft_dante_input", "dante_input", "input_box", "aes67_input", "qlan_rx", "lcqln_line_in", "io_card_flex_in_core_8flex", "io_card_mic_line_in"}
+NET_TX = {"soft_dante_output", "dante_output", "output_box", "aes67_output", "qlan_tx", "lcqln_line_out", "io_card_flex_out_core_8flex", "io_card_line_out"}
 SCRIPT_CLASSES = {"device_controller_script", "device_controller"}
 METERS = {"meter2", "meter", "rta_bandpass", "probe", "injector"}
 CLASS_NAMES = {
@@ -37,7 +37,7 @@ CLASS_NAMES = {
     "audio_file_recorder2": "Audio Recorder", "event_log": "Event Log", "command_buttons": "Command Buttons",
     "pink": "Pink Noise", "white": "White Noise", "meter2": "Meter",
 }
-INV_NAMES = {"Core": "Core", "TouchScreenController": "Touch screen", "UciViewer": "UCI viewer",
+INV_NAMES = {"Core": "Core", "TouchScreenController": "Touch screen", "UciViewer": "UCI viewer", "ParameterizedLcqlnDevice": "Q-LAN peripheral",
              "SoftDanteInput": "Software Dante RX", "SoftDanteOutput": "Software Dante TX",
              "Aes67Receiver": "AES67 receiver", "Aes67Transmitter": "AES67 transmitter"}
 
@@ -66,7 +66,7 @@ def category(c, inventory):
                 if i["class"].startswith("Aes67") or "Qlan" in i["class"]:
                     return "aes67"
         return "physical"
-    if cls in PHYSICAL_IO or cls.startswith(("core_", "flex_", "mic_line")):
+    if cls in PHYSICAL_IO or cls.startswith(("core_", "flex_", "mic_line", "io_card_", "lcqln_line")):
         return "physical"
     if cls in SCRIPT_CLASSES or cls.startswith("%PLUGIN%"):
         return "script"
@@ -219,6 +219,10 @@ def build_docs(m, source_name, title=None, brand=None):
         detail = []
         if i["name"] in model_by_inv:
             detail.append(model_by_inv[i["name"]])
+        if i.get("_ModelName"):
+            detail.append(i["_ModelName"])
+        if i.get("_IsNotRequired"):
+            detail.append("not required")
         if i.get("_ChannelCount"):
             detail.append(f"{i['_ChannelCount']} ch")
         if i.get("_Latency"):

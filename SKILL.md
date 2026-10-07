@@ -29,6 +29,7 @@ Output flags:
 
 - `--html` (the default when no flag is given) writes `findings.html` and `system-design.html`, styled and printable.
 - `--pdf` also prints both to `findings.pdf` and `system-design.pdf` using headless Chrome, Chromium or Edge, whichever is installed (set `QSYS_CHROME` to a browser path if it is somewhere unusual). Printing takes a few seconds per file and needs network access for the fonts and the diagram renderer. The HTML is kept alongside because the PDFs are printed from it.
+- `--offline` for a file saved without a core connected (pre-install, or exported from a laptop). Cached device and script status are then reported as information rather than faults, because they describe an earlier session or nothing at all. Ask, or infer it from the user saying the system is not installed yet; a file full of "Missing" and "Not Present" devices with empty Dante subscriptions is the usual sign.
 - `--no-docs` skips the documentation when only the audit is wanted.
 - `--html --pdf` together is fine; the Markdown files are always written.
 
@@ -48,7 +49,7 @@ If `setup.sh` fails, the two Python dependencies are `nrbf` (the .NET BinaryForm
 
 2. **Read the cached values with care.** A control that is fed by a wire or a signal name can hold a stale cached value, because the file stores what the control held at some earlier save, not what the source now drives into it. The tool already skips fed controls for its UCI-name check; apply the same thinking anywhere you quote a cached value. Conversely, "not in the file" is not proof a control does not exist - the cache only holds controls that have been touched.
 
-3. **Follow signal names, always.** Q-SYS connects pins without wires when they share a signal name. A design that looks unwired is usually one that uses signal names throughout. The tool merges wires and matched names into one graph; if you do any connectivity reasoning of your own, do the same. This is the single easiest way to produce a false "nothing is connected" finding.
+3. **Follow signal names, always, and look past meters.** A signal name whose only listeners are meter containers has not been delivered anywhere; the tool now flags these, but a mixer output wired straight to a meter block looks connected to a naive check. Q-SYS connects pins without wires when they share a signal name. A design that looks unwired is usually one that uses signal names throughout. The tool merges wires and matched names into one graph; if you do any connectivity reasoning of your own, do the same. This is the single easiest way to produce a false "nothing is connected" finding.
 
 4. **Look for copy-paste residue.** Another site's name in an email subject, a factory-default IP on one device, a status-combiner label from a template, notes that describe hardware the design does not have. The tool flags addresses outside the dominant subnet and placeholder labels, but a human reading the notes and the email subjects will catch more. These are the findings that most often explain "random" field faults.
 

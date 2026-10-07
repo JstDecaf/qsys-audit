@@ -265,12 +265,13 @@ def build_model(g):
 
 SEV = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3, "INFO": 4}
 NET_IO = {"soft_dante_input", "soft_dante_output", "input_box", "output_box", "dante_input", "dante_output",
-          "aes67_input", "aes67_output", "qlan_rx", "qlan_tx"}
+          "aes67_input", "aes67_output", "qlan_rx", "qlan_tx", "lcqln_line_in", "lcqln_line_out",
+          "io_card_flex_in_core_8flex", "io_card_flex_out_core_8flex", "io_card_mic_line_in", "io_card_line_out"}
 SCRIPT_CLASSES = {"device_controller_script", "device_controller"}
 TEST_CLASSES = {"ping", "command_buttons", "event_log", "pink", "white", "injector", "probe", "rta_bandpass"}
 
 
-def run_checks(m, out_dir):
+def run_checks(m, out_dir, offline=False):
     F = []
 
     def add(sev, area, title, detail, items=None):
@@ -294,6 +295,34 @@ def run_checks(m, out_dir):
     for L, d in labels.items():
         if d["out"] and d["in"]:
             matched.update((n, pin) for n, pin, _ in d["out"] + d["in"])
+
+    # Containers that hold nothing but meters are monitoring, not a destination.
+    # Map each container's boundary pins to the inner components behind them.
+    METER_CLASSES = {"meter2", "meter", "rta_bandpass", "probe", "audio_file_recorder2"}
+    cpin_inner = defaultdict(set)
+    for w in m["wires"]:
+        for side, other in (("a", "b"), ("b", "a")):
+            o, oo = w[side]["owner"], w[other]["owner"]
+            if o and o[0] == "cpin" and oo and oo[0] == "comp":
+                cpin_inner[o[1].rsplit("#", 1)[0]].add(C[oo[1]]["class"])
+    meter_only = set()
+    for c in C:
+        if c["kind"] == "Container":
+            key = f"{c['path']}/Container:{c['user_label']}/Schematic"
+            inner = cpin_inner.get(key, set())
+            if inner and inner <= METER_CLASSES:
+                meter_only.add(name(c))
+
+    def real_dest(n):
+        c = by_name.get(n)
+        return not (n in meter_only or (c and c["class"] in METER_CLASSES))
+
+    monitor_only = [f"'{L}' <- " + ", ".join(f"{n}[{pin}]" for n, pin, _ in d["out"]) + " (only reaches meters)"
+                    for L, d in labels.items() if d["out"] and d["in"] and d["out"][0][2] == 1
+                    and not any(real_dest(n) for n, _, _ in d["in"])]
+    if monitor_only:
+        add("HIGH", "Signal names", "Audio outputs whose only listeners are meters",
+            "The signal is metered but never reaches a mixer, processor or output. Usually an unfinished route.", sorted(monitor_only))
 
     def connected(c, p):
         return p["wires"] > 0 or (name(c), p["pretty"]) in matched
@@ -345,7 +374,7 @@ def run_checks(m, out_dir):
         if chans:
             unused = [ch for ch in chans if not any(p["pretty"] == f"Channel {ch}" and connected(c, p) for p in c["pins"])]
             if unused:
-                add("HIGH", "Dante", f"'{name(c)}' reports unresolved subscriptions on channels the design does not use",
+                add("INFO" if offline else "HIGH", "Dante", f"'{name(c)}' reports unresolved subscriptions on channels the design does not use",
                     "Channels " + ", ".join(unused) + " are subscribed to a missing transmitter but feed nothing. "
                     "Clear the subscriptions to remove the nuisance Compromised state.")
 
@@ -357,7 +386,8 @@ def run_checks(m, out_dir):
         if st and st != "OK":
             bad_status.append(f"{name(c)}: {st} (errors={err})")
     if bad_status:
-        add("CRITICAL", "Scripts", "Scripts saved in a non-OK state",
+        add("INFO" if offline else "CRITICAL", "Scripts", "Scripts saved in a non-OK state",
+            ("File saved offline, so these are from an earlier connected session and may be stale. " if offline else "") +
             "Script status and error counts are cached in the file at the moment it was last saved while connected.", bad_status)
     dev_status = []
     for c in C:
@@ -365,7 +395,8 @@ def run_checks(m, out_dir):
         if st and not st.startswith(("OK", "Initializing", "Not Present - No clients", "Cannot send e-mail while emulating")):
             dev_status.append(f"{name(c)} ({c['class']}): {st}")
     if dev_status:
-        add("HIGH", "Devices", "Devices / status combiners saved in a non-OK state",
+        add("INFO" if offline else "HIGH", "Devices", "Devices / status combiners saved in a non-OK state",
+            ("File saved offline: devices show Missing / Not Present because nothing was connected. " if offline else "") +
             "Last-known status values cached in the design file.", dev_status)
 
     # --- 3c. scripts -----------------------------------------------------
@@ -475,7 +506,8 @@ def run_checks(m, out_dir):
                and c["class"] not in ("date_time", "meter2", "core_status", "touch_screen_status", "uci_viewer", "status_combiner",
                                       "snapshot_controller", "uci_layer_controller", "control_logic", "audio_file_recorder2",
                                       "page_station_zone_select", "audio_file_player", "router_with_output", "custom_controls")
-               and re.match(r"^[A-Za-z_/-]+(_\d+)?$", c["code_name"] or "")]
+               and re.match(r"^[A-Z][a-z]+(?:[_ /-][A-Z0-9][a-z0-9]*)*(?:_\d+)?$", c["code_name"] or "")
+               and not re.search(r"[A-Z]{2}", c["code_name"] or "")]
     if unnamed:
         add("MEDIUM", "Naming", "Signal-processing blocks left with default names", "", unnamed)
     blank = [f"{c['kind']} on {c['path']}" for c in C if c["kind"] in ("Container", "ChannelGroup") and not c["user_label"]]
@@ -534,6 +566,7 @@ def main():
     ap.add_argument("--out")
     ap.add_argument("--title", help="site / system name for the documentation heading")
     ap.add_argument("--no-docs", action="store_true", help="skip system design documentation")
+    ap.add_argument("--offline", action="store_true", help="the file was saved without a core connected: cached device/script status is reported as INFO, not as a fault")
     ap.add_argument("--brand", help="brand for the HTML/PDF outputs: a name from brands/ (e.g. pxd) or a path to a brand JSON")
     ap.add_argument("--html", action="store_true", help="write styled HTML report and documentation (default when no output flag is given)")
     ap.add_argument("--pdf", action="store_true", help="also print the HTML report and documentation to PDF with headless Chrome / Chromium / Edge")
@@ -543,7 +576,7 @@ def main():
     objects = load_design(a.design)
     m = build_model(Graph(objects))
     json.dump(m, open(os.path.join(out, "model.json"), "w"), indent=1, default=str)
-    F = run_checks(m, out)
+    F = run_checks(m, out, offline=a.offline)
     report = render(m, F, a.design)
     open(os.path.join(out, "findings.md"), "w").write(report)
     print(report)
